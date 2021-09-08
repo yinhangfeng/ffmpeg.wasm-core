@@ -1,0 +1,24 @@
+{
+  // 使用 IntelliSense 了解相关属性。 
+  // 悬停以查看现有属性的描述。
+  // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(lldb) ffmpeg1",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/ffmpeg_g",
+      "args": ["-loglevel", "debug", "-i", "out/video1.mp4", "-b:v", "2m", "out/output1.mp4"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "(lldb) ffmpeg pipe",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/ffmpeg_g",
+      "args": ["-loglevel", "debug", "-f", "rawvideo", "-vcodec", "rawvideo", "-i", "-", "out/output2.mp4"],
+      "cwd": "${workspaceFolder}"
+    },
+  ]
+}
