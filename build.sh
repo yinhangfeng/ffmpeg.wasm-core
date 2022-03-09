@@ -6,6 +6,9 @@ SCRIPT_ROOT=$(dirname $0)/wasm/build-scripts
 
 run() {
   for name in $@; do
+    echo
+    echo "###################### $name ######################"
+    echo
     $SCRIPT_ROOT/$name.sh
   done
 }

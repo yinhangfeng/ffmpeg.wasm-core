@@ -37,5 +37,5 @@ FLAGS=(
   ${EXTRA_FLAGS[@]}
 )
 echo "FFMPEG_EM_FLAGS=${FLAGS[@]}"
-emmake make -j
+emmake make install -j
 emcc "${FLAGS[@]}"
