@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include "os_support.h"
 #include "url.h"
+#include <time.h>
 
 /* Some systems may not have S_ISFIFO */
 #ifndef S_ISFIFO
@@ -399,10 +400,27 @@ static int pipe_open(URLContext *h, const char *filename, int flags)
     return 0;
 }
 
+static int pipe_read(URLContext *h, unsigned char *buf, int size)
+{
+    FileContext *c = h->priv_data;
+    int ret;
+    size = FFMIN(size, c->blocksize);
+    while ((ret = read(c->fd, buf, size)) == 2147483647) {
+        // 模拟阻塞, wasm 下必须在线程中才可以,否则阻塞主线程
+        // 20ms
+        nanosleep((const struct timespec[]){{0, 20000000L}}, NULL);
+    }
+    if (ret == 0 && c->follow)
+        return AVERROR(EAGAIN);
+    if (ret == 0)
+        return AVERROR_EOF;
+    return (ret == -1) ? AVERROR(errno) : ret;
+}
+
 const URLProtocol ff_pipe_protocol = {
     .name                = "pipe",
     .url_open            = pipe_open,
-    .url_read            = file_read,
+    .url_read            = pipe_read,
     .url_write           = file_write,
     .url_get_file_handle = file_get_handle,
     .url_check           = file_check,

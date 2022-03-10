@@ -1,0 +1,138 @@
+<html>
+
+<head>
+  <meta http-equiv="origin-trial"
+    content="AujdLBEkmb+zjXwvaiqn5C+PAAV7wXAS1KhKp3snz4Sz4k5/PfBNM0eSiSAmO7Odf3TXPkv+vsCsplhNcnIgbgAAAAB/eyJvcmlnaW4iOiJodHRwczovL2xvY2FsLTUwMDAtcmV4bWVkaWEucmVuZGVyLmZyZXNoaGVtYS5jb206NDQzIiwiZmVhdHVyZSI6IlVucmVzdHJpY3RlZFNoYXJlZEFycmF5QnVmZmVyIiwiZXhwaXJ5IjoxNjM5NTI2Mzk5fQ==">
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+  </style>
+</head>
+
+<body>
+  <h3>Upload a video to transcode to mp4 (x264) and play!</h3>
+  <video id="output-video" controls></video><br />
+  <button onclick="clearFile()">clear file</button>
+  <input type="file" id="uploader">
+  <p id="message">Upload a video</p>
+  <script type="text/javascript" src="./js/utils.js"></script>
+  <script type="text/javascript">
+    const message = document.getElementById('message');
+    let Core;
+
+    const transcode = async ({ target: { files } }) => {
+
+      let resolve = null;
+      const runPromise = new Promise((_resolve) => {
+        resolve = _resolve;
+      });
+      if (!Core)
+        Core = await createFFmpegCore({
+          printErr: (m) => {
+            console.log(m);
+          },
+          print: (m) => {
+            console.log(m);
+            if (m.startsWith('FFMPEG_END')) {
+              resolve();
+            }
+          },
+          preRun: (mod) => {
+            // PIPEFS 为空时返回一个特定标记 让读取端可模拟阻塞
+            const originRead = mod.PIPEFS.stream_ops.read;
+            mod.PIPEFS.stream_ops.read = function (stream, buffer, offset, length, position) {
+              try {
+                return originRead(stream, buffer, offset, length, position);
+              } catch (err) {
+                if (err.errno === 6) {
+                  if (stream.__ended || stream.node.pipe.__ended) {
+                    return 0;
+                  } else {
+                    // 正常应该返回读取的字节数，这里返回 2^31 - 1 代表无数据 需要阻塞
+                    console.log('wait pipe');
+                    return 2147483647;
+                  }
+                }
+              }
+            };
+
+            // 标记 stream 已经结束，不会再增加新数据
+            mod.FS.endStream = function (stream) {
+              stream.__ended = true;
+              if (stream.node && stream.node.pipe) {
+                stream.node.pipe.__ended = true;
+              }
+            };
+          },
+        });
+
+      // TODO
+      setTimeout(resolve, 5000);
+
+      message.innerHTML = 'Reading file data';
+      const data = new Uint8Array(await readFromBlobOrFile(files[0]));
+
+      const { readable_fd, writable_fd } = Core.PIPEFS.createPipe();
+      const inputStream = Core.FS.getStream(writable_fd);
+      console.log('writable_fd path:', inputStream.path)
+
+      const IN_FILE_NAME = `pipe:${readable_fd}`;
+      const OUT_FILE_NAME = 'video.mp4';
+      const args = ['-f', 'rawvideo', '-vcodec', 'rawvideo', '-pix_fmt', 'rgba', '-s', '720x496', '-r', '30', '-i', IN_FILE_NAME, '-vf', 'format=yuv420p', '-vcodec', 'libx264', OUT_FILE_NAME];
+      const now = Date.now();
+      message.innerHTML = 'Start to transcode';
+
+      console.time(`[${now}] ${files[0].name} execution time`);
+      ffmpeg(Core, args);
+
+      message.innerHTML = 'Writing file to PIPEFS';
+      let dataOffset = 0;
+      const interval = setInterval(() => {
+        const remain = data.length - dataOffset;
+        if (remain === 0) {
+          clearInterval(interval);
+          Core.FS.endStream(inputStream);
+          console.log('endStream', inputStream)
+          return;
+        }
+        const length = Math.min(Math.round(Math.random() * 1200000), remain);
+        Core.FS.write(inputStream, data, dataOffset, length, undefined, undefined);
+        dataOffset += length;
+      }, 10);
+      // Core.FS.write(inputStream, data, 0, data.length, undefined, undefined);
+      // Core.FS.endStream(inputStream);
+      // console.log('endStream', inputStream)
+
+      await runPromise;
+
+      console.timeEnd(`[${now}] ${files[0].name} execution time`);
+
+      Core.FS.closeStream(inputStream);
+      Core.FS.closeStream(Core.FS.getStream(readable_fd));
+
+      const file = Core.FS.readFile(OUT_FILE_NAME);
+      Core.FS.unlink(OUT_FILE_NAME);
+      const video = document.getElementById('output-video');
+      video.src = URL.createObjectURL(new Blob([file.buffer], { type: 'video/mp4' }));
+
+    };
+    document.getElementById('uploader').addEventListener('change', transcode);
+
+    function clearFile() {
+      document.getElementById('uploader').value = '';
+    }
+  </script>
+  <script type="text/javascript" src="../../packages/core/dist/ffmpeg-core.js"></script>
+</body>
+
+</html>

@@ -106,6 +106,8 @@
 
 #include "libavutil/avassert.h"
 
+#include <unistd.h>
+
 const char program_name[] = "ffmpeg";
 const int program_birth_year = 2000;
 
@@ -4828,6 +4830,11 @@ static void init_variables() {
   filtergraphs      = NULL;
   nb_filtergraphs   = 0;
   ffmpeg_exited     = 0;
+}
+
+void export_pipe() {
+    // 让 emscripten 导出 PIPEFS
+    pipe(NULL);
 }
 
 int main(int argc, char **argv)

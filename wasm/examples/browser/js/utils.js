@@ -1,32 +1,35 @@
-const readFromBlobOrFile = (blob) => (
+const readFromBlobOrFile = (blob) =>
   new Promise((resolve, reject) => {
     const fileReader = new FileReader();
     fileReader.onload = () => {
       resolve(fileReader.result);
     };
-    fileReader.onerror = ({ target: { error: { code } } }) => {
+    fileReader.onerror = ({
+      target: {
+        error: { code },
+      },
+    }) => {
       reject(Error(`File could not be read! Code=${code}`));
     };
     fileReader.readAsArrayBuffer(blob);
-  })
-);
+  });
 
 const parseArgs = (Core, args) => {
   const argsPtr = Core._malloc(args.length * Uint32Array.BYTES_PER_ELEMENT);
   args.forEach((s, idx) => {
     const buf = Core._malloc(s.length + 1);
     Core.writeAsciiToMemory(s, buf);
-    Core.setValue(argsPtr + (Uint32Array.BYTES_PER_ELEMENT * idx), buf, 'i32');
+    Core.setValue(argsPtr + Uint32Array.BYTES_PER_ELEMENT * idx, buf, 'i32');
   });
   return [args.length, argsPtr];
 };
 
 const ffmpeg = (Core, args) => {
   Core.ccall(
-    'proxy_main',
+    'emscripten_proxy_main',
     'number',
     ['number', 'number'],
-    parseArgs(Core, ['ffmpeg', '-nostdin', ...args]),
+    parseArgs(Core, ['ffmpeg', '-nostdin', ...args])
   );
 };
 
@@ -49,7 +52,9 @@ const runFFmpeg = async (ifilename, data, args, ofilename, extraFiles = []) => {
   });
   Core.FS.writeFile(ifilename, data);
   ffmpeg(Core, args);
-  await new Promise((_resolve) => { resolve = _resolve });
+  await new Promise((_resolve) => {
+    resolve = _resolve;
+  });
   if (typeof ofilename !== 'undefined') {
     file = Core.FS.readFile(ofilename);
     Core.FS.unlink(ofilename);
@@ -57,4 +62,4 @@ const runFFmpeg = async (ifilename, data, args, ofilename, extraFiles = []) => {
   return { Core, file };
 };
 
-const b64ToUint8Array = (str) => (Uint8Array.from(atob(str), c => c.charCodeAt(0)));
+const b64ToUint8Array = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
