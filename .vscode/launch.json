@@ -9,7 +9,43 @@
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/ffmpeg_g",
-      "args": ["-loglevel", "debug", "-i", "out/video1.mp4", "-b:v", "2m", "out/output1.mp4"],
+      "args": [
+        "-loglevel",
+        "debug",
+        "-i",
+        "out/video1.mp4",
+        "-b:v",
+        "2m",
+        "-y",
+        "out/output1.mp4"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "(lldb) ffmpeg rawvideo",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/ffmpeg_g",
+      "args": [
+        "-loglevel",
+        "debug",
+        "-f",
+        "rawvideo",
+        "-vcodec",
+        "rawvideo",
+        "-pix_fmt",
+        "rgba",
+        "-s",
+        "720x496",
+        "-i",
+        "out/rawvideo.mp4",
+        "-vf",
+        "format=yuv420p",
+        "-vcodec",
+        "libx264",
+        "-y",
+        "out/output2.mp4"
+      ],
       "cwd": "${workspaceFolder}"
     },
     {
@@ -17,7 +53,18 @@
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/ffmpeg_g",
-      "args": ["-loglevel", "debug", "-f", "rawvideo", "-vcodec", "rawvideo", "-i", "-", "out/output2.mp4"],
+      "args": [
+        "-loglevel",
+        "debug",
+        "-f",
+        "rawvideo",
+        "-vcodec",
+        "rawvideo",
+        "-i",
+        "-",
+        "-y",
+        "out/output2.mp4"
+      ],
       "cwd": "${workspaceFolder}"
     },
   ]
